@@ -7,8 +7,12 @@ function texto(valor) {
   return typeof valor === "string" && valor.trim().length > 0;
 }
 
-router.get("/", (_req, res) => {
-  res.status(200).json(store.listar());
+router.get("/", (req, res) => {
+  res.status(200).json(store.listar(req.query.estado));
+});
+
+router.get("/stats", (_req, res) => {
+  res.status(200).json(store.estadisticas());
 });
 
 router.get("/:id", (req, res) => {
@@ -32,10 +36,15 @@ router.post("/", (req, res) => {
     });
     return;
   }
+  if (cuerpo.prioridad !== undefined && !store.esPrioridad(cuerpo.prioridad)) {
+    res.status(400).json({ error: "Prioridad invalida. Use BAJA, MEDIA o ALTA" });
+    return;
+  }
   const tarea = store.crear({
     titulo: cuerpo.titulo,
     descripcion: cuerpo.descripcion,
     estado: cuerpo.estado,
+    prioridad: cuerpo.prioridad,
   });
   res.status(201).json(tarea);
 });
@@ -52,12 +61,17 @@ router.put("/:id", (req, res) => {
     });
     return;
   }
+  if (cuerpo.prioridad !== undefined && !store.esPrioridad(cuerpo.prioridad)) {
+    res.status(400).json({ error: "Prioridad invalida. Use BAJA, MEDIA o ALTA" });
+    return;
+  }
   if (
     cuerpo.titulo === undefined &&
     cuerpo.descripcion === undefined &&
-    cuerpo.estado === undefined
+    cuerpo.estado === undefined &&
+    cuerpo.prioridad === undefined
   ) {
-    res.status(400).json({ error: "Debe enviar titulo, descripcion o estado" });
+    res.status(400).json({ error: "Debe enviar al menos un campo para actualizar" });
     return;
   }
   const actualizada = store.actualizar(req.params.id, cuerpo);

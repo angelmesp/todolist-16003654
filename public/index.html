@@ -3,14 +3,20 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>TodoList v1.0</title>
+  <title>TodoList v2.0</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 24px; background: #f3f3f3; color: #222; }
-    main { max-width: 760px; margin: 0 auto; background: #fff; padding: 20px 24px; border: 1px solid #ccc; }
-    h1 { margin: 0 0 4px; font-size: 22px; }
-    .ver { color: #444; margin-bottom: 16px; }
+    body { font-family: Arial, sans-serif; margin: 24px; background: #eef2f6; color: #111; }
+    main { max-width: 820px; margin: 0 auto; background: #fff; padding: 20px 24px; border: 1px solid #bbb; }
+    .banner { background: #111; color: #fff; padding: 10px 12px; margin: -20px -24px 16px; }
+    h1 { margin: 0; font-size: 22px; }
+    .ver { margin: 4px 0 0; font-size: 13px; color: #ddd; }
+    .stats { display: flex; gap: 10px; margin: 12px 0 16px; flex-wrap: wrap; }
+    .card { flex: 1; min-width: 120px; border: 1px solid #ccc; padding: 8px; text-align: center; }
+    .card b { display: block; font-size: 20px; }
     label { display: block; margin: 8px 0 4px; font-size: 14px; }
     input, select, textarea { width: 100%; box-sizing: border-box; padding: 8px; font: inherit; }
+    .fila { display: flex; gap: 10px; }
+    .fila > div { flex: 1; }
     button { margin-top: 10px; padding: 8px 14px; cursor: pointer; }
     .item { border-top: 1px solid #ddd; padding: 10px 0; }
     .meta { font-size: 13px; color: #555; }
@@ -19,33 +25,67 @@
 </head>
 <body>
   <main>
-    <h1>TodoList v1.0</h1>
-    <p class="ver">Carné 16003654 · crear, listar, actualizar y eliminar</p>
+    <div class="banner">
+      <h1>TodoList v2.0</h1>
+      <p class="ver">Carné 16003654 · filtro por estado, estadísticas y prioridad</p>
+    </div>
+    <div class="stats" id="stats"></div>
     <form id="form">
       <label>Título</label>
       <input id="titulo" required />
       <label>Descripción</label>
       <textarea id="descripcion" rows="2"></textarea>
-      <label>Estado</label>
-      <select id="estado">
-        <option>PENDIENTE</option>
-        <option>EN PROGRESO</option>
-        <option>COMPLETADA</option>
-      </select>
+      <div class="fila">
+        <div>
+          <label>Estado</label>
+          <select id="estado">
+            <option>PENDIENTE</option>
+            <option>EN PROGRESO</option>
+            <option>COMPLETADA</option>
+          </select>
+        </div>
+        <div>
+          <label>Prioridad</label>
+          <select id="prioridad">
+            <option>BAJA</option>
+            <option selected>MEDIA</option>
+            <option>ALTA</option>
+          </select>
+        </div>
+      </div>
       <button type="submit">Agregar tarea</button>
     </form>
     <h2>Tareas</h2>
+    <label>Filtrar por estado</label>
+    <select id="filtro">
+      <option value="">Todas</option>
+      <option>PENDIENTE</option>
+      <option>EN PROGRESO</option>
+      <option>COMPLETADA</option>
+    </select>
     <div id="lista"></div>
   </main>
   <script>
     const lista = document.getElementById("lista");
+    const filtro = document.getElementById("filtro");
+    async function stats() {
+      const res = await fetch("/api/tareas/stats");
+      const d = await res.json();
+      document.getElementById("stats").innerHTML = `
+        <div class="card"><span>Total</span><b>${d.total}</b></div>
+        <div class="card"><span>Pendiente</span><b>${d.porEstado["PENDIENTE"]}</b></div>
+        <div class="card"><span>En progreso</span><b>${d.porEstado["EN PROGRESO"]}</b></div>
+        <div class="card"><span>Completada</span><b>${d.porEstado["COMPLETADA"]}</b></div>
+      `;
+    }
     async function cargar() {
-      const res = await fetch("/api/tareas");
+      const q = filtro.value ? ("?estado=" + encodeURIComponent(filtro.value)) : "";
+      const res = await fetch("/api/tareas" + q);
       const data = await res.json();
       lista.innerHTML = data.map((t) => `
         <div class="item">
           <strong>${t.titulo}</strong>
-          <div class="meta">${t.descripcion || "(sin descripción)"} · ${t.estado} · ${t.fechaCreacion}</div>
+          <div class="meta">${t.descripcion || "(sin descripción)"} · ${t.estado} · ${t.prioridad || "MEDIA"} · ${t.fechaCreacion}</div>
           <div class="acciones">
             <button data-id="${t.id}" data-accion="progreso">En progreso</button>
             <button data-id="${t.id}" data-accion="completar">Completar</button>
@@ -53,6 +93,7 @@
           </div>
         </div>
       `).join("") || "<p>No hay tareas.</p>";
+      stats();
     }
     document.getElementById("form").onsubmit = async (e) => {
       e.preventDefault();
@@ -62,12 +103,14 @@
         body: JSON.stringify({
           titulo: document.getElementById("titulo").value,
           descripcion: document.getElementById("descripcion").value,
-          estado: document.getElementById("estado").value
+          estado: document.getElementById("estado").value,
+          prioridad: document.getElementById("prioridad").value
         })
       });
       e.target.reset();
       cargar();
     };
+    filtro.onchange = cargar;
     lista.onclick = async (e) => {
       const btn = e.target.closest("button");
       if (!btn) return;
