@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TodoList v1.0</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; background: #f3f3f3; color: #222; }
+    main { max-width: 760px; margin: 0 auto; background: #fff; padding: 20px 24px; border: 1px solid #ccc; }
+    h1 { margin: 0 0 4px; font-size: 22px; }
+    .ver { color: #444; margin-bottom: 16px; }
+    label { display: block; margin: 8px 0 4px; font-size: 14px; }
+    input, select, textarea { width: 100%; box-sizing: border-box; padding: 8px; font: inherit; }
+    button { margin-top: 10px; padding: 8px 14px; cursor: pointer; }
+    .item { border-top: 1px solid #ddd; padding: 10px 0; }
+    .meta { font-size: 13px; color: #555; }
+    .acciones button { margin-right: 6px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>TodoList v1.0</h1>
+    <p class="ver">Carné 16003654 · crear, listar, actualizar y eliminar</p>
+    <form id="form">
+      <label>Título</label>
+      <input id="titulo" required />
+      <label>Descripción</label>
+      <textarea id="descripcion" rows="2"></textarea>
+      <label>Estado</label>
+      <select id="estado">
+        <option>PENDIENTE</option>
+        <option>EN PROGRESO</option>
+        <option>COMPLETADA</option>
+      </select>
+      <button type="submit">Agregar tarea</button>
+    </form>
+    <h2>Tareas</h2>
+    <div id="lista"></div>
+  </main>
+  <script>
+    const lista = document.getElementById("lista");
+    async function cargar() {
+      const res = await fetch("/api/tareas");
+      const data = await res.json();
+      lista.innerHTML = data.map((t) => `
+        <div class="item">
+          <strong>${t.titulo}</strong>
+          <div class="meta">${t.descripcion || "(sin descripción)"} · ${t.estado} · ${t.fechaCreacion}</div>
+          <div class="acciones">
+            <button data-id="${t.id}" data-accion="progreso">En progreso</button>
+            <button data-id="${t.id}" data-accion="completar">Completar</button>
+            <button data-id="${t.id}" data-accion="borrar">Eliminar</button>
+          </div>
+        </div>
+      `).join("") || "<p>No hay tareas.</p>";
+    }
+    document.getElementById("form").onsubmit = async (e) => {
+      e.preventDefault();
+      await fetch("/api/tareas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          titulo: document.getElementById("titulo").value,
+          descripcion: document.getElementById("descripcion").value,
+          estado: document.getElementById("estado").value
+        })
+      });
+      e.target.reset();
+      cargar();
+    };
+    lista.onclick = async (e) => {
+      const btn = e.target.closest("button");
+      if (!btn) return;
+      const id = btn.dataset.id;
+      if (btn.dataset.accion === "borrar") {
+        await fetch("/api/tareas/" + id, { method: "DELETE" });
+      } else {
+        const estado = btn.dataset.accion === "completar" ? "COMPLETADA" : "EN PROGRESO";
+        await fetch("/api/tareas/" + id, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ estado })
+        });
+      }
+      cargar();
+    };
+    cargar();
+  </script>
+</body>
+</html>
