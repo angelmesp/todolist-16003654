@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Actividad 6 – Implementación de software</title>
+  <style>
+    @page { size: letter; margin: 22mm 20mm; }
+    body { font-family: "Times New Roman", Times, serif; font-size: 12pt; line-height: 1.45; color: #000; margin: 0; }
+    .cover { page-break-after: always; text-align: center; padding-top: 16mm; }
+    .cover .logo { width: 92mm; border: none; margin: 0 auto 10mm; display: block; }
+    .cover .uni { font-size: 16pt; font-weight: bold; color: #1f4e79; margin: 0 0 8px; }
+    .cover p { margin: 4px 0; font-size: 12pt; text-align: center; color: #000; }
+    .cover .titulo { font-size: 18pt; font-weight: bold; color: #1f4e79; margin: 16mm 0 12mm; }
+    .cover .fecha { margin-top: 20mm; }
+    h2 { font-size: 13pt; font-weight: bold; color: #000; margin: 18px 0 8px; }
+    p { margin: 7px 0; text-align: justify; }
+    table { border-collapse: collapse; width: 100%; font-size: 10.5pt; margin: 8px 0 12px; }
+    th, td { border: 1px solid #000; padding: 4px 6px; text-align: left; vertical-align: top; }
+    pre { font-family: "Courier New", Courier, monospace; font-size: 9pt; border: 1px solid #999; padding: 8px; white-space: pre-wrap; }
+    img:not(.logo) { max-width: 100%; max-height: 88mm; height: auto; display: block; margin: 8px auto; border: 1px solid #ccc; }
+  </style>
+</head>
+<body>
+  <section class="cover">
+    <img class="logo" src="portada/logo-galileo.png" alt="Universidad Galileo" />
+    <p class="uni">Universidad Galileo</p>
+    <p>Curso: Diseño E Implementación del Software, Sección A</p>
+    <p>Catedrático: Ing. Francisco Retana</p>
+    <p class="titulo">Actividad 6 – Implementación de software</p>
+    <p><strong>Estudiante:</strong> Angel Estuardo Montesflores España</p>
+    <p><strong>Carnet:</strong> 16003654</p>
+    <p class="fecha">Guatemala, 14 de septiembre de 2026</p>
+  </section>
+
+  <h2>1. Aplicación TodoList</h2>
+  <p>
+    Se implementó una TodoList REST en Node.js y Express, con una
+    interfaz web en el mismo puerto. Cada tarea tiene id, título,
+    descripción, estado y fecha de creación. Los estados son
+    PENDIENTE, EN PROGRESO y COMPLETADA. El puerto y la versión se
+    leen de variables de entorno. No hay contraseñas en el código.
+  </p>
+  <p>
+    Repositorio: https://github.com/angelmesp/todolist-16003654<br />
+    Imágenes: angelmesp/16003654:1.0 y angelmesp/16003654:2.0<br />
+    Servidor: http://134.209.65.91:3654
+  </p>
+  <img src="evidencias/github.png" alt="Repositorio GitHub" />
+  <img src="evidencias/v1-local.png" alt="TodoList v1 en local" />
+
+  <h2>2. Construcción de la imagen</h2>
+  <p>
+    El Dockerfile es de dos etapas. El nombre de la imagen usa el
+    carné, como pide la guía. En el servidor se construyeron las dos
+    etiquetas:
+  </p>
+  <pre>docker build -t angelmesp/16003654:1.0 .
+docker build -t angelmesp/16003654:2.0 .
+
+$ docker images angelmesp/16003654
+IMAGE                    ID             DISK USAGE
+angelmesp/16003654:1.0   2a44778ba83b        237MB
+angelmesp/16003654:2.0   6095876d98e9        237MB</pre>
+
+  <h2>3. Implementación en el servidor</h2>
+  <p>
+    La conexión fue por SSH a 134.209.65.91 con el usuario root. El
+    puerto 3654 se tomó de los últimos cuatro dígitos del carné,
+    porque 8080 ya estaba ocupado. El contenedor se llamó
+    todolist-16003654. La configuración (PORT, APP_VERSION) se pasó
+    con -e.
+  </p>
+  <pre>ssh root@134.209.65.91
+docker run -d --name todolist-16003654 -p 3654:8080 \
+  -e PORT=8080 -e APP_VERSION=1.0 angelmesp/16003654:1.0
+
+CONTAINER   IMAGE                    STATUS     PORTS
+todolist-16003654   angelmesp/16003654:1.0   healthy    0.0.0.0:3654->8080/tcp
+
+$ docker logs todolist-16003654
+TodoList v1.0 en puerto 8080</pre>
+  <img src="evidencias/v1-servidor.png" alt="Aplicación v1 en el servidor" />
+
+  <h2>4. Tipo de implementación</h2>
+  <p><strong>¿Qué tipo de implementación realizaron: local, remota, manual o automatizada?</strong></p>
+  <p>
+    Se hizo de las dos formas. Primero local, para comprobar el CRUD
+    y la interfaz. Después remota y manual: SSH al servidor, build de
+    la imagen y docker run. No se usó un pipeline de CI/CD; los
+    pasos se ejecutaron a mano, que es lo que describe la estrategia
+    Recreate de la guía.
+  </p>
+  <p><strong>¿Qué diferencias encontraron entre ejecutar localmente y desplegar en un servidor?</strong></p>
+  <p>
+    En local el proceso es un node directo en el puerto 8080. En el
+    servidor hay que publicar un puerto libre, nombrar el contenedor
+    y dejar la versión anterior disponible. El código es el mismo;
+    cambia el empaquetado, la red y quién administra el proceso.
+  </p>
+  <p><strong>¿Qué riesgos existen al actualizar directamente una aplicación en producción?</strong></p>
+  <p>
+    Recreate detiene el contenedor actual antes de subir el nuevo,
+    así que hay un momento sin servicio. Si la v2 falla y no se
+    conservó la imagen 1.0, no hay a qué regresar. También se
+    pierden datos en memoria, porque esta API no usa base de datos.
+  </p>
+  <p><strong>¿Qué ventajas proporciona Docker para mover software entre ambientes?</strong></p>
+  <p>
+    La imagen lleva runtime y dependencias. Local y servidor
+    ejecutan el mismo artefacto. Versionar 1.0 y 2.0 permite
+    actualizar y hacer rollback sin reinstalar Node a mano.
+  </p>
+
+  <h2>5. Versión 2.0</h2>
+  <p>
+    La v2 agrega prioridad (BAJA, MEDIA, ALTA), filtro por estado y
+    estadísticas. La interfaz muestra <strong>TodoList v2.0</strong>.
+  </p>
+  <img src="evidencias/v2-servidor.png" alt="Aplicación v2 en el servidor" />
+
+  <h2>6. Actualización y rollback (Recreate)</h2>
+  <p>
+    La estrategia usada fue Recreate: se detiene y elimina el
+    contenedor actual y se levanta la imagen nueva en el mismo
+    nombre y puerto.
+  </p>
+  <pre>docker stop todolist-16003654
+docker rm todolist-16003654
+docker run -d --name todolist-16003654 -p 3654:8080 \
+  -e PORT=8080 -e APP_VERSION=2.0 angelmesp/16003654:2.0
+# health: {"status":"ok","version":"2.0"}</pre>
+  <p>
+    Para simular un problema en v2 se regresó a la imagen 1.0, que
+    se había dejado en el servidor:
+  </p>
+  <pre>docker stop todolist-16003654
+docker rm todolist-16003654
+docker run -d --name todolist-16003654 -p 3654:8080 \
+  -e PORT=8080 -e APP_VERSION=1.0 angelmesp/16003654:1.0
+# health: {"status":"ok","version":"1.0"}</pre>
+  <img src="evidencias/rollback-v1.png" alt="Rollback a TodoList v1.0" />
+  <p>
+    Después del rollback se volvió a dejar la 2.0 en ejecución, ya
+    comprobado que la 1.0 sigue disponible.
+  </p>
+
+  <h2>7. Preguntas de análisis</h2>
+
+  <p><strong>¿Qué es una implementación de software?</strong></p>
+  <p>
+    Es el proceso de poner una aplicación construida en un ambiente
+    donde los usuarios o el servicio la pueden usar: instalarla,
+    configurarla, publicarla y comprobar que responde.
+  </p>
+
+  <p><strong>¿Qué diferencia existe entre desarrollo e implementación?</strong></p>
+  <p>
+    El desarrollo produce el código y las pruebas. La implementación
+    lleva ese producto a un ambiente real (local empaquetado o
+    servidor), con puertos, imágenes y operación del contenedor.
+  </p>
+
+  <p><strong>¿Qué problema resuelve Docker durante una implementación?</strong></p>
+  <p>
+    Evita el “en mi máquina sí corre”. La imagen incluye lo necesario
+    para ejecutar la app, así que local y servidor usan el mismo
+    paquete.
+  </p>
+
+  <p><strong>¿Por qué debemos versionar una imagen Docker?</strong></p>
+  <p>
+    Para saber qué se desplegó y para poder volver atrás. Si solo se
+    usa latest, un rollback no tiene un punto fijo. Aquí 1.0 y 2.0
+    se conservaron a propósito.
+  </p>
+
+  <p><strong>¿Qué diferencia existe entre integración continua y entrega continua?</strong></p>
+  <p>
+    Integración continua (CI) automatiza build y pruebas al integrar
+    cambios. Entrega continua (CD) deja el artefacto listo para
+    producirse de forma repetible; el paso a producción puede seguir
+    siendo una decisión humana.
+  </p>
+
+  <p><strong>¿Qué diferencia existe entre entrega continua y despliegue continuo?</strong></p>
+  <p>
+    En entrega continua el paquete queda preparado. En despliegue
+    continuo cada cambio que pasa las pruebas se publica solo en
+    producción, sin un visto bueno manual en cada release.
+  </p>
+
+  <p><strong>¿Qué es rollback y por qué es importante?</strong></p>
+  <p>
+    Es volver a una versión anterior cuando la nueva falla. En este
+    ejercicio se demostró al detener la 2.0 y levantar de nuevo la
+    1.0. Importa porque reduce el tiempo de una falla en producción.
+  </p>
+
+  <p><strong>¿Qué ventajas presenta Blue/Green?</strong></p>
+  <p>
+    Se mantienen dos ambientes. El tráfico se cambia al nuevo cuando
+    está listo. El anterior queda en espera, así el rollback es
+    rápido y hay menos tiempo caído que con Recreate.
+  </p>
+
+  <p><strong>¿Qué ventajas presenta Canary?</strong></p>
+  <p>
+    La versión nueva se expone primero a una parte de los usuarios.
+    Si las métricas se ven mal, se detiene el avance. Reduce el
+    impacto de un error frente a actualizar a todos de una vez.
+  </p>
+
+  <p><strong>¿Por qué no es recomendable modificar manualmente producción?</strong></p>
+  <p>
+    Los cambios a mano no quedan en la imagen ni en Git. El
+    siguiente contenedor los pierde, y otro ambiente no los replica.
+    Lo correcto es cambiar el código, construir otra etiqueta y
+    desplegar esa imagen.
+  </p>
+
+  <p><strong>¿Qué información debe verificarse después de un despliegue?</strong></p>
+  <p>
+    docker ps (estado y puertos), docker logs, /health y la
+    interfaz en el navegador. En este caso se comprobó healthy, el
+    log “TodoList vX.0 en puerto 8080” y el JSON de /health.
+  </p>
+
+  <h2>8. Uso de IA</h2>
+  <p>
+    La IA ayudó a ordenar Dockerfile, variables de entorno y la
+    secuencia Recreate. Se corrigió lo que no coincidía con la guía:
+    el nombre de la imagen es el carné (no todo-api), los estados
+    no son un boolean, y el DELETE/PATCH de prácticas anteriores se
+    ajustó a PUT y a los campos pedidos. El puerto 3654 se eligió
+    porque 8080 ya estaba ocupado en el servidor.
+  </p>
+  <table>
+    <tr><th>Prompt</th><th>Qué se aceptó</th><th>Qué se corrigió</th></tr>
+    <tr>
+      <td>Dockerfile para una API Node y cómo versionar 1.0 y 2.0.</td>
+      <td>Imagen de dos etapas y etiquetas fijas.</td>
+      <td>El nombre pasó a angelmesp/16003654, no a un nombre genérico.</td>
+    </tr>
+    <tr>
+      <td>Qué mejora conviene para una TodoList v2.0.</td>
+      <td>Filtro, estadísticas y prioridad.</td>
+      <td>La interfaz debía mostrar “TodoList v2.0” de forma visible.</td>
+    </tr>
+    <tr>
+      <td>Cómo hacer rollback con Docker.</td>
+      <td>stop, rm y run de la imagen anterior.</td>
+      <td>No se usó latest. Se dejó la 1.0 en el servidor.</td>
+    </tr>
+  </table>
+</body>
+</html>
